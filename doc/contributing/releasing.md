@@ -18,6 +18,7 @@ We aim to eventually automate this process as much as possible.
    - **Experimental packages** (`./experimental/packages/*`): Select `minor`, `patch`, or `inherit` (automatically inherits from Stable SDK if Stable SDK is released)
    - **API package** (`./api`): Select `minor`, `patch`, or `inherit` (no release). When set, makes Stable SDK and Experimental packages inherit the same version bump.
    - **Semantic Conventions** (`./semantic-conventions`): Select `minor`, `patch`, or `inherit` (no release)
+   - **Semantic Conventions GenAI** (`./semantic-conventions-genai`): Select `minor`, `patch`, or `inherit` (no release)
    - **Pre-release identifier**: Select `development`, `rc`, or `none` (a normal release). See [Pre-releases](#pre-releases).
 
 **Release Rules:**
@@ -26,6 +27,8 @@ We aim to eventually automate this process as much as possible.
 - If you use "API package", it will make both Stable SDK and Experimental packages inherit the same version bump
 - You cannot set "API package" to a specific version while also setting Stable SDK or Experimental to different bumps (the workflow will fail)
 - Semantic Conventions can be released independently or alongside other packages
+- Semantic Conventions GenAI can also be released independently or alongside other packages, on
+  its own version line, separate from Semantic Conventions
 - `major` is only offered for Stable SDK packages. Experimental packages inherit it as a
   `minor` bump, because they track the stable SDK generation in their minor version
   (`2.x` ↔ `0.2xx.x`, see [the upgrade guide](../upgrade-to-2.x.md)) — a stable `3.0.0`
@@ -84,6 +87,8 @@ So a full 3.0.0 cycle looks like:
   pre-release version does not satisfy — npm would resolve the dependency to the last
   published release from the registry instead of linking the local workspace copy, and
   `scripts/lint-semconv-deps.mjs` requires dependents to keep that plain caret range.
+  Release it separately, as a normal release.
+- **Semantic Conventions GenAI**, for the same reason as Semantic Conventions above.
   Release it separately, as a normal release.
 - Cutting a **normal** Experimental release while the Stable SDK is mid-pre-release.
   Experimental packages pin stable SDK packages exactly, so this would publish a stable
@@ -198,10 +203,10 @@ explanatory error rather than producing any of these:
 - A **`major`** bump - `v2.x` only releases `2.x` versions, a new major is released from `main`.
 - A **pre-release identifier** - maintenance releases are always normal releases, and a
   pre-release cut here would compete for `main`'s pre-release dist-tag.
-- An **API** or **Semantic Conventions** release. Both are on a single version line shared by
-  every branch and independent of the SDK major, so `main` still carries the very same line;
-  from a maintenance branch they would be published under `latest-2` instead of `latest`.
-  Release them from `main`.
+- An **API**, **Semantic Conventions**, or **Semantic Conventions GenAI** release. Each is on
+  its own single version line shared by every branch and independent of the SDK major, so
+  `main` still carries the very same line; from a maintenance branch they would be published
+  under `latest-2` instead of `latest`. Release them from `main`.
 
 #### Changelogs on a maintenance branch
 
@@ -279,6 +284,7 @@ Before the first release from a new maintenance branch:
    - `npm run _github:draft_release:experimental`, if you published an `api`, `sdk` or `experimental` release
    - `npm run _github:draft_release:stable`, if you published an `api` or `sdk` release
    - `npm run _github:draft_release:semconv`, if you published a `semconv` release
+   - `npm run _github:draft_release:semconv-genai`, if you published a `semconv-genai` release
    - `npm run _github:draft_release:api` if you published an `api` release
 3. Verify that the contents of the created draft releases (title, changelog, selected commit)
 4. Publish the releases

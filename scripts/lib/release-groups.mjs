@@ -1,5 +1,5 @@
 /**
- * The four release groups of this repository, and how to recognize which group a
+ * The five release groups of this repository, and how to recognize which group a
  * package belongs to.
  *
  * Packages are versioned in lockstep *within* a group, but each group has its own
@@ -54,6 +54,13 @@ export const RELEASE_GROUPS = {
     packagePath: './semantic-conventions/package.json',
     configKey: 'RELEASE_TYPE_SEMCONV',
     matchesRelativePath: relativePath => relativePath === 'semantic-conventions',
+  },
+  'Semantic Conventions (GenAI)': {
+    name: 'Semantic Conventions (GenAI)',
+    changelogPath: './semantic-conventions-genai/CHANGELOG.md',
+    packagePath: './semantic-conventions-genai/package.json',
+    configKey: 'RELEASE_TYPE_SEMCONV_GENAI',
+    matchesRelativePath: relativePath => relativePath === 'semantic-conventions-genai',
   },
 };
 
