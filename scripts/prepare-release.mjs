@@ -12,13 +12,15 @@
  * - EXPERIMENTAL_RELEASE: "inherit" (default), "patch", or "minor"
  * - API_RELEASE: "inherit" (default), "patch", or "minor"
  * - SEMCONV_RELEASE: "inherit" (default), "patch", or "minor"
+ * - SEMCONV_GENAI_RELEASE: "inherit" (default), "patch", or "minor"
  * - PRERELEASE: "none" (default), "development", or "rc"
  * - RELEASE_BASE_BRANCH: branch the release is cut from, "main" or "v<major>.x" (e.g. "v2.x").
  *   Defaults to the currently checked out branch - see resolveBaseBranch().
  *
  * PRERELEASE is a modifier, not a selector: it changes how the selected groups are
  * bumped (2.10.0 -> 3.0.0-development.0) but never selects a group on its own. It cannot be
- * combined with a Semantic Conventions release - see resolveReleaseConfig().
+ * combined with a Semantic Conventions or Semantic Conventions GenAI release - see
+ * resolveReleaseConfig().
  *
  * RELEASE_BASE_BRANCH decides which of those combinations are allowed at all: a maintenance
  * branch such as "v2.x" only cuts normal releases within its own major, while "main" is
@@ -111,6 +113,7 @@ function resolveReleaseConfig(baseBranch) {
     EXPERIMENTAL_RELEASE: ['inherit', 'patch', 'minor'],
     API_RELEASE: ['inherit', 'patch', 'minor'],
     SEMCONV_RELEASE: ['inherit', 'patch', 'minor'],
+    SEMCONV_GENAI_RELEASE: ['inherit', 'patch', 'minor'],
     // Listed in semver precedence order: development < rc.
     PRERELEASE: ['none', 'development', 'rc']
   };
@@ -131,6 +134,7 @@ function resolveReleaseConfig(baseBranch) {
   const EXPERIMENTAL_RELEASE = validateInput('EXPERIMENTAL_RELEASE', process.env.EXPERIMENTAL_RELEASE || 'inherit');
   const API_RELEASE = validateInput('API_RELEASE', process.env.API_RELEASE || 'inherit');
   const SEMCONV_RELEASE = validateInput('SEMCONV_RELEASE', process.env.SEMCONV_RELEASE || 'inherit');
+  const SEMCONV_GENAI_RELEASE = validateInput('SEMCONV_GENAI_RELEASE', process.env.SEMCONV_GENAI_RELEASE || 'inherit');
   const PRERELEASE = validateInput('PRERELEASE', process.env.PRERELEASE || 'none');
   const prereleaseId = PRERELEASE === 'none' ? null : PRERELEASE;
 
@@ -146,11 +150,12 @@ function resolveReleaseConfig(baseBranch) {
       process.exit(1);
     }
 
-    for (const [name, value] of [['API_RELEASE', API_RELEASE], ['SEMCONV_RELEASE', SEMCONV_RELEASE]]) {
+    for (const [name, value] of [['API_RELEASE', API_RELEASE], ['SEMCONV_RELEASE', SEMCONV_RELEASE], ['SEMCONV_GENAI_RELEASE', SEMCONV_GENAI_RELEASE]]) {
       if (isSet(value)) {
         console.error(`Error: ${name} is not supported on maintenance branch "${baseBranch.name}".`);
-        console.error('The API and Semantic Conventions packages are on their own version line, shared by every');
-        console.error('branch and independent of the SDK major, so "main" still carries the very same line. From');
+        console.error('The API, Semantic Conventions, and Semantic Conventions GenAI packages are on their own');
+        console.error('version line, shared by every branch and independent of the SDK major, so "main" still carries');
+        console.error('the very same line. From');
         console.error(`here they would be published under the "${resolveDistTags(baseBranch.name).distTag}" dist-tag instead of "latest".`);
         console.error('Please release them from "main".');
         process.exit(1);
@@ -173,6 +178,17 @@ function resolveReleaseConfig(baseBranch) {
     console.error(`Error: SEMCONV_RELEASE cannot be combined with PRERELEASE="${PRERELEASE}".`);
     console.error('Dependents of @opentelemetry/semantic-conventions must keep a caret range, which a');
     console.error('pre-release version does not satisfy.');
+    console.error('Please release this package separately, as a normal release.');
+    process.exit(1);
+  }
+
+  // Same restriction as Semantic Conventions above, kept for consistency in case anything
+  // in this monorepo starts depending on @opentelemetry/semantic-conventions-genai through a
+  // caret range in the future.
+  if (prereleaseId && isSet(SEMCONV_GENAI_RELEASE)) {
+    console.error(`Error: SEMCONV_GENAI_RELEASE cannot be combined with PRERELEASE="${PRERELEASE}".`);
+    console.error('A pre-release version does not satisfy a caret range, which any future dependent of');
+    console.error('@opentelemetry/semantic-conventions-genai would need to keep.');
     console.error('Please release this package separately, as a normal release.');
     process.exit(1);
   }
@@ -217,6 +233,7 @@ function resolveReleaseConfig(baseBranch) {
   let releaseTypeExperimental = '';
   let releaseTypeApi = '';
   let releaseTypeSemconv = '';
+  let releaseTypeSemconvGenai = '';
 
   if (isSet(API_RELEASE)) {
     // API release makes SDK and experimental inherit the bump, rules are enforced above to prevent conflicts.
@@ -254,10 +271,16 @@ function resolveReleaseConfig(baseBranch) {
     releaseTypeSemconv = SEMCONV_RELEASE;
   }
 
+  // Semconv GenAI is independent, same as Semconv above
+  if (isSet(SEMCONV_GENAI_RELEASE)) {
+    releaseTypeSemconvGenai = SEMCONV_GENAI_RELEASE;
+  }
+
   // Ensure at least one package is selected
-  if (!releaseTypeApi && !releaseTypeStable && !releaseTypeExperimental && !releaseTypeSemconv) {
+  if (!releaseTypeApi && !releaseTypeStable && !releaseTypeExperimental && !releaseTypeSemconv && !releaseTypeSemconvGenai) {
     console.error('Error: No packages selected for release.');
-    console.error('At least one of STABLE_SDK_RELEASE, EXPERIMENTAL_RELEASE, API_RELEASE, or SEMCONV_RELEASE must be set to "patch", "minor" or "major".');
+    console.error('At least one of STABLE_SDK_RELEASE, EXPERIMENTAL_RELEASE, API_RELEASE, SEMCONV_RELEASE, or');
+    console.error('SEMCONV_GENAI_RELEASE must be set to "patch", "minor" or "major".');
     if (prereleaseId) {
       console.error('');
       console.error(`Note: PRERELEASE="${PRERELEASE}" only changes how the selected packages are bumped.`);
@@ -333,6 +356,7 @@ function resolveReleaseConfig(baseBranch) {
   console.log(`  RELEASE_TYPE_EXPERIMENTAL: ${releaseTypeExperimental || '(none)'}`);
   console.log(`  RELEASE_TYPE_API: ${releaseTypeApi || '(none)'}`);
   console.log(`  RELEASE_TYPE_SEMCONV: ${releaseTypeSemconv || '(none)'}`);
+  console.log(`  RELEASE_TYPE_SEMCONV_GENAI: ${releaseTypeSemconvGenai || '(none)'}`);
   console.log(`  PRERELEASE_ID: ${prereleaseId || '(none)'}`);
 
   return {
@@ -340,6 +364,7 @@ function resolveReleaseConfig(baseBranch) {
     RELEASE_TYPE_EXPERIMENTAL: releaseTypeExperimental,
     RELEASE_TYPE_API: releaseTypeApi,
     RELEASE_TYPE_SEMCONV: releaseTypeSemconv,
+    RELEASE_TYPE_SEMCONV_GENAI: releaseTypeSemconvGenai,
     PRERELEASE_ID: prereleaseId
   };
 }
